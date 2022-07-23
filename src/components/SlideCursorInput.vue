@@ -56,10 +56,29 @@ input {
   display: inline-block;
   border-radius: 3px;
   transition: .2s;
+
+  &:hover {
+    border: 1px solid rgb(0, 115, 223);
+  }
 }
 
 .focus {
   border: 1px solid rgb(0, 115, 223);
-  box-shadow: 0 0 4px 1px rgb(0 115 223 / 19%);
+  box-shadow: 0 0 1px 2px rgb(0 115 223 / 19%);
+  animation: inputFocus 0.6s;
+
+  ::-webkit-input-placeholder {
+    opacity: .8;
+  }
+}
+
+@keyframes inputFocus {
+  25% {
+    box-shadow: 0 0 10px 1px rgba(0, 115, 223, 0.2);
+  }
+
+  100% {
+    box-shadow: 0 0 30px 1px rgba(0, 115, 223, 0), 0 0 1px 2px rgb(0 115 223 / 19%);
+  }
 }
 </style>
