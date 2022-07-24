@@ -9,7 +9,7 @@ const inputText = ref('');
 <template>
   <img src="/vite.svg" class="logo" alt="Vite logo" />
 
-  <DiscreteInput :mount-input-cell="6" v-model="inputText" />
+  <DiscreteInput :cell-mount="6" v-model="inputText" />
 
   <input
     type="text"
@@ -19,7 +19,7 @@ const inputText = ref('');
   />
 </template>
 
-<style lang="scss">
+<style lang="less">
 div,
 span,
 p,

@@ -1,11 +1,19 @@
 <script setup lang="ts">
-import { HTMLAttributes, ref, withDefaults, Ref, onMounted, watch } from 'vue';
+import {
+  HTMLAttributes,
+  ref,
+  withDefaults,
+  Ref,
+  onMounted,
+  watch,
+  computed,
+} from 'vue';
 
 type acceptType = 'digit' | 'letter' | 'all';
 
 interface Props {
   modelValue: string;
-  mountInputCell?: number; // 多少个格子
+  cellMount?: number; // 多少个格子
   width?: number; // 整体宽度
   Height?: number;
   cellWidth?: number; // 如果设置了width，那么cellWidth将不起作用
@@ -22,18 +30,19 @@ interface Props {
 // 这里不能解构 否则会导致丧失ref
 const props = withDefaults(defineProps<Props>(), {
   modelValue: '',
-  mountInputCell: 6,
+  cellMount: 6,
   cellGap: 10,
   cellStyle: '',
   height: 30,
   autoFocus: false,
+  acceptType: 'digit',
 });
 
 const emit = defineEmits<{
   (event: 'update:modelValue', modelValue: string): void;
 }>();
 
-const fakeInputRefs = new Array(props.mountInputCell).fill(
+const fakeInputRefs = new Array(props.cellMount).fill(
   ref()
 ) as HTMLInputElement[];
 
@@ -79,15 +88,16 @@ function handleInputChange(e: Event) {
 // 取代当前格内容
 function replaceContent(content: string | null | undefined, step: number) {
   if (content === undefined || content === null) return;
-  if (!/[0-9]|^$/.test(content)) return;
-  if (curSelect.value >= props.mountInputCell) return;
+  // if (!/[0-9]|^$/.test(content)) return;
+  content = textFilter(content, props.acceptType);
+  if (curSelect.value >= props.cellMount) return;
   fakeInputRefs[curSelect.value].value = content;
   moveIndex(step);
 }
 
 // 移动当前格索引
 function moveIndex(step: number) {
-  if (curSelect.value + step >= props.mountInputCell) return;
+  if (curSelect.value + step >= props.cellMount) return;
   curSelect.value += step;
 }
 
@@ -102,9 +112,14 @@ function handleBlur() {
 }
 
 // 当v-model的值被外界改变时候，自动更新fake-input的状态
+// 并且强制不能让v-model的值的类型发生错误
 watch(
   () => props.modelValue,
   str => {
+    emit(
+      'update:modelValue',
+      textFilter(props.modelValue.slice(0, props.cellMount), props.acceptType)
+    );
     fakeInputRefs.forEach((elem, index) => {
       elem.value = str.charAt(index);
     });
@@ -113,19 +128,34 @@ watch(
     }
   }
 );
+
+function textFilter(
+  str: string,
+  acceptType: acceptType | acceptType[]
+): string {
+  if (typeof acceptType !== 'object') acceptType = [acceptType];
+  // 如果是 all 那么直接返回
+  if (acceptType.includes('all')) {
+    return str;
+  }
+  // 如果是两者 那么返回字母和数字
+  if (acceptType.includes('digit') && acceptType.includes('letter')) {
+    return str.replace(/[^0-9a-zA-Z]/gi, '');
+  }
+  // 如果是字母
+  if (acceptType.length === 1 && acceptType.includes('letter')) {
+    return str.replace(/[^a-zA-Z]/gi, '');
+  }
+  // 如果是数字或者为空
+  return str.replace(/[^0-9]/gi, '');
+}
+
+const cellGap = computed(() => `${props.cellGap.toString()}px`);
 </script>
 
 <template>
   <div class="discrete-input-container">
-    <div
-      class="input-cell-wrap"
-      :style="
-        index < props.mountInputCell - 1
-          ? cellStyle + `margin-right: ${props.cellGap}px;`
-          : cellStyle
-      "
-      v-for="(_, index) in props.mountInputCell"
-    >
+    <div class="input-cell-wrap" v-for="(_, index) in props.cellMount">
       <input
         type="text"
         class="fake-input-cell"
@@ -153,9 +183,11 @@ watch(
   </div>
 </template>
 
-<style scoped lang="scss">
+<style>
 @import url('https://fonts.googleapis.com/css2?family=Oxanium:wght@500&display=swap');
+</style>
 
+<style scoped lang="less">
 input {
   outline: medium;
   border: none;
@@ -168,6 +200,9 @@ input {
 
 .input-cell-wrap {
   position: relative;
+  &:not(:first-of-type) {
+    margin-left: v-bind(cellGap);
+  }
 }
 
 .fake-input-cell {
