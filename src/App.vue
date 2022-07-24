@@ -19,10 +19,11 @@ const inputText = ref('');
   />
 </template>
 
-<style scoped lang="scss">
+<style lang="scss">
 div,
 span,
-p {
+p,
+input {
   box-sizing: border-box;
 }
 
