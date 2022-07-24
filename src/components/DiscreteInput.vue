@@ -95,9 +95,10 @@ input {
   }
   &:focus {
     background-color: rgb(233, 238, 243);
-    border: 1px solid rgb(0, 115, 223);
+    border: 1px solid rgb(99, 161, 255);
     box-shadow: 0 0 1px 2px rgb(0 115 223 / 19%);
     animation: inputFocus 0.6s;
+    transform: scale(1.05);
   }
 }
 
