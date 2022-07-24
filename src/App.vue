@@ -1,28 +1,22 @@
 <script setup lang="ts">
-import { computed, ref, watch, HTMLAttributes } from "vue";
-import SlideCursorInput from "./components/SlideCursorInput.vue"
+import { ref } from 'vue';
 
-const inputText = ref('')
-watch(inputText, () => {
-  console.warn(inputText.value)
-})
+import DiscreteInput from './components/DiscreteInput.vue';
 
-
-const slideCursorInputStyle: HTMLAttributes['style'] = {
-  margin: '20px',
-  width: '250px',
-}
+const inputText = ref('');
 </script>
 
 <template>
   <img src="/vite.svg" class="logo" alt="Vite logo" />
 
-  <div>
-    <SlideCursorInput v-model="inputText" :style="slideCursorInputStyle" />
-  </div>
+  <DiscreteInput :mount-input-cell="6" v-model="inputText" />
 
-  <input type="text" v-model="inputText" placeholder="普通输入框">
-  <div></div>
+  <input
+    type="text"
+    v-model="inputText"
+    placeholder="普通输入框"
+    style="margin-top: 30px"
+  />
 </template>
 
 <style scoped lang="scss">
