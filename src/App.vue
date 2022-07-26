@@ -4,12 +4,16 @@ import { ref } from 'vue';
 import DiscreteInput from './components/DiscreteInput.vue';
 
 const inputText = ref('');
+
+function handleError(e) {
+  alert(e.message);
+}
 </script>
 
 <template>
   <img src="/vite.svg" class="logo" alt="Vite logo" />
 
-  <DiscreteInput :cell-mount="6" v-model="inputText" />
+  <DiscreteInput :cell-mount="6" v-model="inputText" :onError="handleError" />
 
   <input
     type="text"
@@ -19,7 +23,7 @@ const inputText = ref('');
   />
 </template>
 
-<style lang="less">
+<style lang="scss">
 div,
 span,
 p,

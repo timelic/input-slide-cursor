@@ -1,29 +1,27 @@
 <script setup lang="ts">
-import {
-  HTMLAttributes,
-  ref,
-  withDefaults,
-  Ref,
-  onMounted,
-  watch,
-  computed,
-} from 'vue';
+import { HTMLAttributes, ref, withDefaults, Ref, onMounted, watch } from 'vue';
 
 type acceptType = 'digit' | 'letter' | 'all';
+
+interface InputError {
+  code: 100 | 101 | 102;
+  message: string;
+}
 
 interface Props {
   modelValue: string;
   cellMount?: number; // 多少个格子
   width?: number; // 整体宽度
-  Height?: number;
+  height?: number;
   cellWidth?: number; // 如果设置了width，那么cellWidth将不起作用
   cellGap?: number;
   cellStyle?: HTMLAttributes['style'];
   fontSize?: number;
+  themeColor?: string;
   acceptType?: acceptType[] | acceptType;
   autoFocus?: boolean;
   onSuccess?: () => void; // 成功输入所有格子的回调
-  onError?: () => void; // 输入错误的回调
+  onError?: (e: InputError) => void; // 输入错误的回调
 }
 
 // props
@@ -31,12 +29,27 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   modelValue: '',
   cellMount: 6,
+  width: 0,
+  height: 40,
+  cellWidth: 40,
   cellGap: 10,
   cellStyle: '',
-  height: 30,
+  fontSize: 17,
+  themeColor: '#0073df',
   autoFocus: false,
   acceptType: 'digit',
 });
+
+// 如果设置了width，那么cellWidth将不起作用
+const cellWidth = () =>
+  props.width
+    ? (props.width - (props.cellMount - 1) * props.cellGap) / props.cellMount
+    : props.cellWidth;
+
+const width = () =>
+  props.width
+    ? props.width
+    : props.cellGap * (props.cellMount - 1) + props.cellWidth * props.cellMount;
 
 const emit = defineEmits<{
   (event: 'update:modelValue', modelValue: string): void;
@@ -44,7 +57,7 @@ const emit = defineEmits<{
 
 const fakeInputRefs = new Array(props.cellMount).fill(
   ref()
-) as HTMLInputElement[];
+) as HTMLDivElement[];
 
 let inputRef = ref() as Ref<HTMLInputElement>;
 
@@ -54,7 +67,7 @@ let curSelect = ref(-1);
 // 所有伪input的值之和
 const fakeInputCellsValue = () =>
   fakeInputRefs
-    .map(elem => elem.value)
+    .map(elem => elem.innerText)
     .reduce((prev, current) => prev + current);
 
 // real-input的v-model的值
@@ -71,6 +84,8 @@ function handleFocus(index: number) {
 
 function handleDelete() {
   replaceContent('', -1);
+  // 有这个就很迷 没这个也很迷
+  // emit('update:modelValue', fakeInputCellsValue());
 }
 
 // 防止中文输入法导致多次输入
@@ -91,7 +106,7 @@ function replaceContent(content: string | null | undefined, step: number) {
   // if (!/[0-9]|^$/.test(content)) return;
   content = textFilter(content, props.acceptType);
   if (curSelect.value >= props.cellMount) return;
-  fakeInputRefs[curSelect.value].value = content;
+  fakeInputRefs[curSelect.value].innerText = content;
   moveIndex(step);
 }
 
@@ -121,9 +136,9 @@ watch(
       textFilter(props.modelValue.slice(0, props.cellMount), props.acceptType)
     );
     fakeInputRefs.forEach((elem, index) => {
-      elem.value = str.charAt(index);
+      elem.innerText = str.charAt(index);
     });
-    if (fakeInputRefs.every(elem => elem.value)) {
+    if (fakeInputRefs.every(elem => elem.innerText)) {
       props.onSuccess?.();
     }
   }
@@ -135,74 +150,92 @@ function textFilter(
 ): string {
   if (typeof acceptType !== 'object') acceptType = [acceptType];
   // 如果是 all 那么直接返回
-  if (acceptType.includes('all')) {
-    return str;
-  }
+  if (acceptType.includes('all')) return str;
+  let res = str;
   // 如果是两者 那么返回字母和数字
-  if (acceptType.includes('digit') && acceptType.includes('letter')) {
-    return str.replace(/[^0-9a-zA-Z]/gi, '');
-  }
+  if (acceptType.includes('digit') && acceptType.includes('letter'))
+    res = str.replace(/[^0-9a-zA-Z]/gi, '');
   // 如果是字母
-  if (acceptType.length === 1 && acceptType.includes('letter')) {
-    return str.replace(/[^a-zA-Z]/gi, '');
-  }
+  if (acceptType.length === 1 && acceptType.includes('letter'))
+    res = str.replace(/[^a-zA-Z]/gi, '');
   // 如果是数字或者为空
-  return str.replace(/[^0-9]/gi, '');
+  if (acceptType.length === 1 && acceptType.includes('digit'))
+    res = str.replace(/[^0-9]/gi, '');
+  if (res.length !== str.length) {
+    props.onError?.({
+      code: 101,
+      message: 'type invalid char.',
+    });
+  }
+  return res;
 }
 
-const cellGap = computed(() => `${props.cellGap.toString()}px`);
+function handleInputError() {
+  props.onError?.({
+    code: 102,
+    message: 'input dom element error.',
+  });
+}
 </script>
 
 <template>
   <div class="discrete-input-container">
     <div class="input-cell-wrap" v-for="(_, index) in props.cellMount">
-      <input
+      <div
         type="text"
         class="fake-input-cell"
         :class="{ 'input-focus': index === curSelect }"
         :ref="el => { fakeInputRefs[index] = el as any }"
         maxlength="1"
-        @focus="handleFocus(index)"
+        @click="handleFocus(index)"
         :style="cellStyle"
-      />
+      ></div>
       <span
         class="input-cursor"
-        v-if="index === curSelect && !fakeInputRefs[index].value"
+        v-if="index === curSelect && !fakeInputRefs[index].innerText"
       ></span>
     </div>
-    <input
-      class="real-input"
-      type="number"
-      ref="inputRef"
-      v-model="inputText"
-      @input="handleInputChange"
-      @keyup.delete.native="handleDelete"
-      style="width: 0"
-      @blur="handleBlur"
-    />
   </div>
+  <input
+    class="real-input"
+    type="number"
+    ref="inputRef"
+    style="width: 0"
+    v-model="inputText"
+    @input="handleInputChange"
+    @keyup.delete.native="handleDelete"
+    @blur="handleBlur"
+    @error="handleInputError"
+  />
 </template>
 
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Oxanium:wght@500&display=swap');
 </style>
 
-<style scoped lang="less">
+<style scoped lang="scss">
+$theme-color: #0073df;
+// $theme-color: v-bind('props.themeColor');
+// $theme-color: red;
+
 input {
   outline: medium;
   border: none;
   padding: 0;
+  box-sizing: border-box;
 }
 
 .discrete-input-container {
   display: flex;
+  width: calc(v-bind(width()) * 1px);
+  justify-content: space-between;
+  --theme-color: #0073df;
 }
 
 .input-cell-wrap {
   position: relative;
-  &:not(:first-of-type) {
-    margin-left: v-bind(cellGap);
-  }
+  width: calc(v-bind(cellWidth()) * 1px);
+  font-size: calc(v-bind('props.fontSize') * 1px);
 }
 
 .fake-input-cell {
@@ -210,20 +243,20 @@ input {
   outline: medium;
   background-color: #f1f1f1;
   padding: 0;
-  width: 40px;
-  height: 40px;
-  line-height: 40px;
+  width: calc(v-bind(cellWidth()) * 1px);
+  height: calc(v-bind('props.height') * 1px);
+  line-height: calc(v-bind('props.height') * 1px);
   border-radius: 5px;
   text-align: center;
   caret-color: #7a7a7a;
-  font-size: 17px;
+  color: black;
   font-family: 'Oxanium', cursive;
   user-select: none;
   -webkit-user-select: none;
+  cursor: text;
   transition: 0.2s;
-  padding-top: 10%;
   &:hover {
-    border: 1px solid rgb(0, 115, 223);
+    border: 1px solid $theme-color;
   }
   &.input-focus {
     background-color: rgb(233, 238, 243);
@@ -246,9 +279,9 @@ input {
 }
 
 .input-cursor {
-  width: 30%;
-  height: 7%;
-  background-color: rgb(155, 155, 155);
+  width: 0.65em;
+  height: 0.15em;
+  background-color: #9b9b9b;
   display: block;
   position: absolute;
   top: 70%;
